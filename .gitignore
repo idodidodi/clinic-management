@@ -1,0 +1,34 @@
+# MacOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode
+build/
+DerivedData/
+*.xcworkspace
+!default.xcworkspace
+xcuserdata/
+*.xccheckout
+*.xcscheme
+!default.xcscheme
+*.xcuserstate
+project.xcworkspace/
+xcuserdata/
+WorkspaceSettings.xcsettings
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+build/
+.env*.local
+.vercel
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Supabase / DB
+.temp
+supabase/.temp
