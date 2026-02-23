@@ -16,6 +16,8 @@ xcuserdata/
 project.xcworkspace/
 xcuserdata/
 WorkspaceSettings.xcsettings
+.env
+.env.local
 
 # Node / Next.js
 node_modules/
