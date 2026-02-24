@@ -1,4 +1,4 @@
-import SwiftUI
+………import SwiftUI
 
 struct HistoryView: View {
     @ObservedObject private var dataManager = DataManager.shared
