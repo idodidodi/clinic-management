@@ -145,8 +145,8 @@ export default function ReconciliationPage() {
                 <div className="flex justify-center p-12 text-gray-400 text-sm font-medium animate-pulse">Syncing with database...</div>
             ) : (
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-                    {/* Unpaid Meetings Section */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    {/* Unpaid Meetings Section - Hidden on Mobile (Reporting Mode) */}
+                    <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <div className="bg-gray-50/50 px-6 py-4 border-b border-gray-50 flex justify-between items-center">
                             <h2 className="font-bold text-gray-900">Unpaid Meetings</h2>
                             <span className="bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-1 rounded-lg uppercase">{meetings.length} Total</span>

@@ -147,19 +147,12 @@ export default function CustomersPage() {
                                         <p className="text-sm font-bold text-blue-600">₪{customer.tariff_default} / ₪{customer.tariff_parents}</p>
                                     </div>
                                 </div>
-                                <div className="flex gap-2 pt-2 border-t border-gray-50">
-                                    <button
-                                        onClick={() => handleOpenModal(customer)}
-                                        className="flex-1 py-2 bg-blue-50 text-blue-700 rounded-xl font-bold text-sm hover:bg-blue-100 transition-colors"
-                                    >
-                                        Edit
-                                    </button>
-                                    <button
-                                        onClick={() => handleDelete(customer.id)}
-                                        className="flex-1 py-2 bg-red-50 text-red-600 rounded-xl font-bold text-sm hover:bg-red-100 transition-colors"
-                                    >
-                                        Delete
-                                    </button>
+                                {/* 
+                                    Therapist Reporting Mode (Mobile): 
+                                    Editing and deletion are disabled to distinguish from Backoffice.
+                                */}
+                                <div className="text-center py-2 bg-gray-50 rounded-xl text-gray-400 text-xs font-bold mt-2">
+                                    Edit details via Backoffice (Desktop)
                                 </div>
                             </div>
                         ))}

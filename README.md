@@ -4,13 +4,16 @@ A unified, mobile-first Progressive Web App (PWA) for independent therapists to 
 
 ## Features
 
-### Unified Experience
-- **Mobile-First Design**: Optimized for small screens with thumb-friendly navigation and quick-action modals.
-- **Fast Reporting**: Quick entry for meetings (Child, Parent, Parents) and cash payments, ideal for busy schedules.
-- **Customer Directory**: Add new customers, view core details, and manage contact information.
-- **Reconciliation**: Match meetings to payments on-the-go or from a desktop.
-- **Data Insights**: Dashboard summary of earnings, pending items, and schedules.
-- **Cross-Platform**: Install the app directly on your iPhone, Android, or desktop for a standalone experience.
+### Unified Architecture
+This mobile-first Progressive Web App (PWA) uses a responsive design to serve two distinct purposes:
+- **Therapist Reporting (Mobile View)**: Optimized for quick on-the-go data entry. Focuses on reporting meetings and payments. Restrictions apply to prevent accidental edits or complex reconciliation on small screens.
+- **Backoffice (Desktop View)**: A full-featured management interface for administrative tasks, including full customer management and payment reconciliation.
+
+## Features
+- **Smart Quick Reporting**: Effortless entry for meetings and payments.
+- **Customer Directory**: Add new customers anywhere; manage details from your desk.
+- **Reconciliation (Desktop)**: Powerful tools to match meetings and payments.
+- **Cross-Platform**: Accessible via any web browser or installed as a standalone PWA on iOS/Android.
 
 ## Tech Stack
 
