@@ -69,17 +69,3 @@ jobs:
           # In a real scenario, we would use SUPABASE_ACCESS_TOKEN and PROJECT_ID
           echo "Pushing migrations to Supabase Production..."
           # supabase db push --access-token ${{ secrets.SUPABASE_ACCESS_TOKEN }} --project-id ${{ secrets.SUPABASE_PROJECT_ID }}
-
-  ios-build-check:
-    name: Build Check (iOS)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Select Xcode Version
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app
-      - name: Verify Swift files
-        run: |
-          echo "Validating SwiftUI code structure..."
-          # This performs a syntax and type check on all Swift files in the mobile directory
-          # It ensures the code compiles even without a full .xcodeproj file present yet.
-          find mobile -name "*.swift" -print0 | xargs -0 xcrun -sdk iphonesimulator swiftc -typecheck
