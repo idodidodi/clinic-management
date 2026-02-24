@@ -27,5 +27,8 @@ struct MainTabView: View {
                     Label("Customers", systemImage: "person.2.fill")
                 }
         }
+        .task {
+            await DataManager.shared.refreshData()
+        }
     }
 }

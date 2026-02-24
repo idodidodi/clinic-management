@@ -1,76 +1,349 @@
-import React from 'react';
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 
 export default function Dashboard() {
+  const [stats, setStats] = useState({
+    earnings: 0,
+    openMeetings: 0,
+    activeCustomers: 0
+  });
+  const [recentMeetings, setRecentMeetings] = useState<any[]>([]);
+  const [recentPayments, setRecentPayments] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Quick Report State
+  const [reportType, setReportType] = useState<'MEETING' | 'PAYMENT'>('MEETING');
+  const [formData, setFormData] = useState({
+    customer_id: '',
+    date: new Date().toISOString().split('T')[0],
+    type: 'CHILD',
+    custom_cost: '',
+    amount: '',
+    method: 'BIT',
+    payer_name: ''
+  });
+
+  useEffect(() => {
+    fetchDashboardData();
+    fetchCustomers();
+  }, []);
+
+  async function fetchCustomers() {
+    const { data } = await supabase.from('customers').select('id, name').order('name');
+    setCustomers(data || []);
+  }
+
+  async function fetchDashboardData() {
+    setLoading(true);
+    // 1. Fetch Stats
+    const { count: customerCount } = await supabase.from('customers').select('*', { count: 'exact', head: true });
+    const { count: meetingCount } = await supabase.from('meetings').select('*', { count: 'exact', head: true }).eq('is_paid', false);
+    const { data: paymentsData } = await supabase.from('payments').select('amount');
+
+    const totalEarnings = paymentsData?.reduce((sum, p) => sum + p.amount, 0) || 0;
+
+    setStats({
+      earnings: totalEarnings,
+      openMeetings: meetingCount || 0,
+      activeCustomers: customerCount || 0
+    });
+
+    // 2. Recent Meetings
+    const { data: mData } = await supabase
+      .from('meetings')
+      .select('id, date, type, is_paid, customer:customers(name)')
+      .order('date', { ascending: false })
+      .limit(5);
+
+    setRecentMeetings(mData || []);
+
+    // 3. Recent Payments
+    const { data: pData } = await supabase
+      .from('payments')
+      .select('id, date, amount, method, payer_name')
+      .order('date', { ascending: false })
+      .limit(5);
+
+    setRecentPayments(pData || []);
+    setLoading(false);
+  }
+
+  const handleQuickReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    if (reportType === 'MEETING') {
+      const { error } = await supabase.from('meetings').insert([{
+        customer_id: formData.customer_id,
+        date: formData.date,
+        type: formData.type,
+        custom_cost: formData.custom_cost ? parseInt(formData.custom_cost) : null,
+        is_paid: false
+      }]);
+      if (error) console.error(error);
+    } else {
+      const selectedCustomer = customers.find(c => c.id === formData.customer_id);
+      const { error } = await supabase.from('payments').insert([{
+        customer_id: formData.customer_id,
+        date: formData.date,
+        amount: parseInt(formData.amount),
+        method: formData.method,
+        payer_name: formData.payer_name || selectedCustomer?.name || 'Unknown'
+      }]);
+      if (error) console.error(error);
+    }
+
+    setIsModalOpen(false);
+    setFormData({
+      customer_id: '',
+      date: new Date().toISOString().split('T')[0],
+      type: 'CHILD',
+      custom_cost: '',
+      amount: '',
+      method: 'BIT',
+      payer_name: ''
+    });
+    fetchDashboardData();
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <header className="mb-8 flex items-center justify-between">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto pb-24 md:pb-8">
+      {/* Install Banner (Mobile Only) */}
+      <div className="mb-6 md:hidden">
+        <div className="bg-blue-600 rounded-2xl p-5 text-white shadow-xl shadow-blue-100 flex items-center justify-between gap-4">
+          <div className="flex-1">
+            <h3 className="text-lg font-black leading-tight italic">Install for Full App Experience</h3>
+            <p className="text-[10px] font-bold opacity-90 mt-1 uppercase tracking-wider">Tap Share <span className="text-sm">⎋</span> then "Add to Home Screen"</p>
+          </div>
+        </div>
+      </div>
+
+      <header className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 text-black">Clinic Management Dashboard</h1>
-          <p className="text-gray-600">Overview of meetings, payments, and customers.</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">Therapist Dashboard</h1>
+          <p className="text-sm md:text-base text-gray-500">Welcome back! Here's what's happening today.</p>
         </div>
-        <div className="flex gap-4">
-          <button className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition-colors">
-            Report Payment
-          </button>
-          <button className="rounded-lg bg-white border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors">
-            New Customer
-          </button>
-        </div>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="w-full md:w-auto rounded-xl bg-blue-600 px-6 py-3 text-white font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95"
+        >
+          + Quick Report
+        </button>
       </header>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        {/* Stats Section */}
-        <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-          <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Total Earnings (This Month)</h3>
-          <p className="mt-2 text-3xl font-bold text-black">₪12,400</p>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
+        <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 flex flex-col justify-center">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Earnings</p>
+          <p className="mt-2 text-3xl font-extrabold text-gray-900 tracking-tight">₪{stats.earnings.toLocaleString()}</p>
+          <p className="mt-1 text-xs text-green-600 font-medium flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Confirmed payments
+          </p>
         </div>
-        <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-          <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Open Meetings</h3>
-          <p className="mt-2 text-3xl font-bold text-black">8</p>
+        <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 flex flex-col justify-center">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Open Meetings</p>
+          <p className="mt-2 text-3xl font-extrabold text-gray-900 tracking-tight">{stats.openMeetings}</p>
+          <p className="mt-1 text-xs text-blue-600 font-medium flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Pending payment
+          </p>
         </div>
-        <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-          <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Active Customers</h3>
-          <p className="mt-2 text-3xl font-bold text-black">42</p>
+        <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 flex flex-col justify-center">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Active Customers</p>
+          <p className="mt-2 text-3xl font-extrabold text-gray-900 tracking-tight">{stats.activeCustomers}</p>
+          <p className="mt-1 text-xs text-gray-400 font-medium flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span> Total registered
+          </p>
         </div>
       </div>
 
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Recent Meetings */}
-        <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 text-black">Recent Meetings</h2>
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-200 transition-all">
+        <div className="rounded-2xl bg-white shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
+            <h2 className="font-bold text-gray-900">Recent Meetings</h2>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {recentMeetings.map((meeting) => (
+              <div key={meeting.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors active:bg-gray-100">
                 <div>
-                  <p className="font-medium text-gray-900 text-black">Customer Name {i}</p>
-                  <p className="text-sm text-gray-500">Child Meeting • Feb 21, 2026</p>
+                  <p className="font-bold text-gray-900">{meeting.customer?.name}</p>
+                  <p className="text-xs text-gray-500 font-medium">{new Date(meeting.date).toLocaleDateString()} • {meeting.type}</p>
                 </div>
-                <span className="rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
-                  Unpaid
+                <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${meeting.is_paid ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                  {meeting.is_paid ? 'Paid' : 'Unpaid'}
                 </span>
               </div>
             ))}
+            {recentMeetings.length === 0 && <p className="p-8 text-center text-gray-400 text-sm">No meetings recorded yet.</p>}
           </div>
         </div>
 
         {/* Recent Payments */}
-        <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 text-black">Recent Payments</h2>
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-200 transition-all">
+        <div className="rounded-2xl bg-white shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
+            <h2 className="font-bold text-gray-900">Recent Payments</h2>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {recentPayments.map((payment) => (
+              <div key={payment.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors active:bg-gray-100">
                 <div>
-                  <p className="font-medium text-gray-900 text-black">Payer Name {i}</p>
-                  <p className="text-sm text-gray-500">Bit • ₪300 • Feb 20, 2026</p>
+                  <p className="font-bold text-gray-900">{payment.payer_name}</p>
+                  <p className="text-xs text-gray-500 font-medium">{new Date(payment.date).toLocaleDateString()} • {payment.method}</p>
                 </div>
-                <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                  Confirmed
-                </span>
+                <p className="font-black text-green-600 text-lg">₪{payment.amount}</p>
               </div>
             ))}
+            {recentPayments.length === 0 && <p className="p-8 text-center text-gray-400 text-sm">No payments recorded yet.</p>}
           </div>
         </div>
       </div>
+
+      {/* Quick Report Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm p-0 md:p-4">
+          <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in slide-in-from-bottom md:zoom-in duration-300">
+            <header className="bg-gray-50 px-6 py-5 border-b border-gray-200 flex justify-between items-center">
+              <div className="flex bg-gray-200 p-1 rounded-xl w-full mr-4">
+                <button
+                  onClick={() => setReportType('MEETING')}
+                  className={`flex-1 py-2 rounded-lg text-sm font-black transition-all ${reportType === 'MEETING' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'}`}
+                >
+                  Meeting
+                </button>
+                <button
+                  onClick={() => setReportType('PAYMENT')}
+                  className={`flex-1 py-2 rounded-lg text-sm font-black transition-all ${reportType === 'PAYMENT' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500'}`}
+                >
+                  Payment
+                </button>
+              </div>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1">
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </header>
+
+            <form onSubmit={handleQuickReport} className="p-6 space-y-5 pb-10 md:pb-6">
+              <div>
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Customer</label>
+                <select
+                  required
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all text-black font-bold appearance-none"
+                  value={formData.customer_id}
+                  onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
+                >
+                  <option value="">Select a customer</option>
+                  {customers.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Date</label>
+                  <input
+                    required
+                    type="date"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all text-black font-bold"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {reportType === 'MEETING' ? (
+                <>
+                  <div>
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Meeting Type</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['CHILD', 'PARENT', 'PARENTS'].map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, type })}
+                          className={`py-3 rounded-xl border-2 text-xs font-black transition-all ${formData.type === type ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-100 bg-gray-50 text-gray-400 hover:border-gray-200 text-black'}`}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Custom Cost (Optional)</label>
+                    <input
+                      type="number"
+                      placeholder="Uses default tariff"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all text-black font-bold"
+                      value={formData.custom_cost}
+                      onChange={(e) => setFormData({ ...formData, custom_cost: e.target.value })}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Amount (₪)</label>
+                      <input
+                        required
+                        type="number"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all text-black font-bold text-lg"
+                        value={formData.amount}
+                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Method</label>
+                      <select
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all text-black font-bold appearance-none"
+                        value={formData.method}
+                        onChange={(e) => setFormData({ ...formData, method: e.target.value })}
+                      >
+                        <option value="BIT">Bit</option>
+                        <option value="PAYBOX">Paybox</option>
+                        <option value="CASH">Cash</option>
+                        <option value="BANK_DRAFT">Bank Draft</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Payer Name (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="Defaults to customer"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all text-black font-bold"
+                      value={formData.payer_name}
+                      onChange={(e) => setFormData({ ...formData, payer_name: e.target.value })}
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="pt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="flex-1 px-4 py-4 border-2 border-gray-100 rounded-2xl text-gray-500 font-black text-sm active:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`flex-1 px-4 py-4 text-white rounded-2xl font-black text-sm transition-all shadow-xl active:scale-95 ${reportType === 'MEETING' ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-100' : 'bg-green-600 hover:bg-green-700 shadow-green-100'}`}
+                >
+                  Save Report
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

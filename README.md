@@ -31,10 +31,17 @@ The system uses a relational PostgreSQL database with the following core entitie
 
 ## Development Setup
 
-1. **Database**: Initialize a Supabase project and apply the schema (SQL provided in `implementation_plan.md`).
-2. **Mobile App**: Open the `mobile/` directory (to be created) in Xcode.
-3. **Web Portal**: Run `npm install` and `npm run dev` in the `web/` directory (to be created).
+1. **Database**: Initialize a Supabase project and apply the schema in `supabase/migrations/`.
+2. **Mobile App**: Open the `mobile/ClinicManagement` directory in Xcode.
+3. **Web Portal**: Run `npm install` and `npm run dev` in the `web/` directory.
+
+## Getting Started
+
+For a detailed guide on how to run the app on your physical iPhone and manage the back-office, see the [Walkthrough](file:///Users/ido1/.gemini/antigravity/brain/acd6b7e2-0b64-45e3-a872-cb1e49c4ef3b/walkthrough.md).
 
 ## Maintainability
 
-This project uses **Primary Keys (PK)** for all records to ensure data integrity and easy reconciliation. The integration between the mobile app and the web portal is handled through Supabase's real-time API.
+This project strictly follows **DevOps and IaC principles**:
+- **Database as Code**: All schema changes are managed via migrations.
+- **CI/CD**: Build validation for iOS is handled via GitHub Actions.
+- **Live Sync**: Real-time integration between mobile and web via Supabase.

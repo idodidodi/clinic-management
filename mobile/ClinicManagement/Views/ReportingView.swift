@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct ReportingView: View {
+    @ObservedObject private var dataManager = DataManager.shared
     @State private var selectedCustomer: Customer?
     @State private var meetingType: MeetingType = .child
     @State private var customCost: String = ""
@@ -8,18 +8,12 @@ struct ReportingView: View {
     @State private var payerName: String = ""
     @State private var showingSuccessAlert = false
     
-    // Mock data for initial preview
-    let mockCustomers = [
-        Customer(id: UUID(), name: "John Doe", tariffDefault: 300, tariffParents: 400),
-        Customer(id: UUID(), name: "Jane Smith", tariffDefault: 250, tariffParents: 350)
-    ]
-    
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
                 // Customer Selection
                 Menu {
-                    ForEach(mockCustomers) { customer in
+                    ForEach(dataManager.customers) { customer in
                         Button(customer.name) {
                             selectedCustomer = customer
                         }
@@ -124,16 +118,40 @@ struct ReportingView: View {
     }
     
     func reportMeeting() {
-        // Logic to save to Supabase will go here
-        showingSuccessAlert = true
-        customCost = ""
+        guard let customer = selectedCustomer else { return }
+        let meeting = Meeting(
+            id: UUID(),
+            customerId: customer.id,
+            date: Date(),
+            type: meetingType,
+            customCost: Int(customCost),
+            isPaid: false
+        )
+        Task {
+            await dataManager.addMeeting(meeting)
+            showingSuccessAlert = true
+            customCost = ""
+        }
     }
     
     func reportPayment() {
-        // Logic to save to Supabase will go here
-        showingSuccessAlert = true
-        cashAmount = ""
-        payerName = ""
+        guard let customer = selectedCustomer, let amount = Int(cashAmount) else { return }
+        let payment = Payment(
+            id: UUID(),
+            customerId: customer.id,
+            payerName: payerName.isEmpty ? customer.name : payerName,
+            amount: amount,
+            date: Date(),
+            method: .cash,
+            ref: nil,
+            details: nil
+        )
+        Task {
+            await dataManager.addPayment(payment)
+            showingSuccessAlert = true
+            cashAmount = ""
+            payerName = ""
+        }
     }
 }
 
