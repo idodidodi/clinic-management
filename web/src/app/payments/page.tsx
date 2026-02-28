@@ -19,14 +19,17 @@ interface Payment {
     method: string;
 }
 
+import { useAdmin } from '@/lib/AdminContext';
+
 export default function ReconciliationPage() {
+    const { isAdmin } = useAdmin();
     const [meetings, setMeetings] = useState<Meeting[]>([]);
     const [payments, setPayments] = useState<Payment[]>([]);
     const [customers, setCustomers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // Form State for New Payment
+    // ... (keep state)
     const [formData, setFormData] = useState({
         customer_id: '',
         payer_name: '',
@@ -130,8 +133,12 @@ export default function ReconciliationPage() {
         <div className="p-4 md:p-8 max-w-7xl mx-auto pb-24 md:pb-8">
             <header className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">Reconciliation</h1>
-                    <p className="text-sm md:text-base text-gray-500">Match payments to meetings and verify accounts.</p>
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
+                        {isAdmin ? 'Reconciliation' : 'Payments'}
+                    </h1>
+                    <p className="text-sm md:text-base text-gray-500">
+                        {isAdmin ? 'Match payments to meetings and verify accounts.' : 'Logged payments and on-the-go reporting.'}
+                    </p>
                 </div>
                 <button
                     onClick={() => setIsModalOpen(true)}
@@ -144,39 +151,41 @@ export default function ReconciliationPage() {
             {loading && meetings.length === 0 ? (
                 <div className="flex justify-center p-12 text-gray-400 text-sm font-medium animate-pulse">Syncing with database...</div>
             ) : (
-                <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-                    {/* Unpaid Meetings Section - Hidden on Mobile (Reporting Mode) */}
-                    <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="bg-gray-50/50 px-6 py-4 border-b border-gray-50 flex justify-between items-center">
-                            <h2 className="font-bold text-gray-900">Unpaid Meetings</h2>
-                            <span className="bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-1 rounded-lg uppercase">{meetings.length} Total</span>
-                        </div>
-                        <div className="divide-y divide-gray-100">
-                            {meetings.map((meeting) => (
-                                <div key={meeting.id} className="p-5 flex items-center justify-between hover:bg-gray-50 transition-all active:bg-gray-100">
-                                    <div className="flex-1 min-w-0 pr-4">
-                                        <p className="font-bold text-gray-900 truncate">{meeting.customer_name}</p>
-                                        <p className="text-xs text-gray-500 font-medium">{meeting.date} • {meeting.type}</p>
+                <div className={`grid grid-cols-1 gap-8 ${isAdmin ? 'lg:grid-cols-2' : 'max-w-2xl mx-auto'}`}>
+                    {/* Unpaid Meetings Section - Admin Only */}
+                    {isAdmin && (
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div className="bg-gray-50/50 px-6 py-4 border-b border-gray-50 flex justify-between items-center">
+                                <h2 className="font-bold text-gray-900">Unpaid Meetings</h2>
+                                <span className="bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-1 rounded-lg uppercase">{meetings.length} Total</span>
+                            </div>
+                            <div className="divide-y divide-gray-100">
+                                {meetings.map((meeting) => (
+                                    <div key={meeting.id} className="p-5 flex items-center justify-between hover:bg-gray-50 transition-all active:bg-gray-100">
+                                        <div className="flex-1 min-w-0 pr-4">
+                                            <p className="font-bold text-gray-900 truncate">{meeting.customer_name}</p>
+                                            <p className="text-xs text-gray-500 font-medium">{meeting.date} • {meeting.type}</p>
+                                        </div>
+                                        <div className="text-right flex flex-col items-end gap-1">
+                                            <p className="font-black text-blue-600 text-lg leading-none">₪{meeting.cost}</p>
+                                            <button
+                                                onClick={() => handleMarkAsPaid(meeting.id)}
+                                                className="text-[10px] bg-blue-50 text-blue-700 px-2 py-1 rounded-md hover:bg-blue-100 font-black uppercase tracking-wider transition-colors"
+                                            >
+                                                Mark Paid
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className="text-right flex flex-col items-end gap-1">
-                                        <p className="font-black text-blue-600 text-lg leading-none">₪{meeting.cost}</p>
-                                        <button
-                                            onClick={() => handleMarkAsPaid(meeting.id)}
-                                            className="text-[10px] bg-blue-50 text-blue-700 px-2 py-1 rounded-md hover:bg-blue-100 font-black uppercase tracking-wider transition-colors"
-                                        >
-                                            Mark Paid
-                                        </button>
+                                ))}
+                                {meetings.length === 0 && (
+                                    <div className="p-12 text-center text-gray-400 bg-white">
+                                        <div className="text-3xl mb-2">🎉</div>
+                                        <p className="text-sm font-medium">All meetings are paid!</p>
                                     </div>
-                                </div>
-                            ))}
-                            {meetings.length === 0 && (
-                                <div className="p-12 text-center text-gray-400 bg-white">
-                                    <div className="text-3xl mb-2">🎉</div>
-                                    <p className="text-sm font-medium">All meetings are paid!</p>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Recent Payments Section */}
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">

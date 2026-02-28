@@ -1,9 +1,9 @@
-'use client';
-
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useAdmin } from '@/lib/AdminContext';
 
 export default function Dashboard() {
+  const { isAdmin } = useAdmin();
   const [stats, setStats] = useState({
     earnings: 0,
     openMeetings: 0,
@@ -14,11 +14,14 @@ export default function Dashboard() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isNewCustomer, setIsNewCustomer] = useState(false);
 
   // Quick Report State
   const [reportType, setReportType] = useState<'MEETING' | 'PAYMENT'>('MEETING');
   const [formData, setFormData] = useState({
     customer_id: '',
+    new_customer_name: '',
+    new_customer_phone: '',
     date: new Date().toISOString().split('T')[0],
     type: 'CHILD',
     custom_cost: '',
@@ -76,9 +79,32 @@ export default function Dashboard() {
     e.preventDefault();
     setLoading(true);
 
+    let finalCustomerId = formData.customer_id;
+
+    // Handle New Customer Creation
+    if (isNewCustomer) {
+      const { data: newCust, error: custError } = await supabase
+        .from('customers')
+        .insert([{
+          name: formData.new_customer_name,
+          cell_phone: formData.new_customer_phone,
+          tariff_default: 300,
+          tariff_parents: 450
+        }])
+        .select()
+        .single();
+
+      if (custError) {
+        console.error('Error creating customer:', custError);
+        setLoading(false);
+        return;
+      }
+      finalCustomerId = newCust.id;
+    }
+
     if (reportType === 'MEETING') {
       const { error } = await supabase.from('meetings').insert([{
-        customer_id: formData.customer_id,
+        customer_id: finalCustomerId,
         date: formData.date,
         type: formData.type,
         custom_cost: formData.custom_cost ? parseInt(formData.custom_cost) : null,
@@ -86,9 +112,9 @@ export default function Dashboard() {
       }]);
       if (error) console.error(error);
     } else {
-      const selectedCustomer = customers.find(c => c.id === formData.customer_id);
+      const selectedCustomer = isNewCustomer ? { name: formData.new_customer_name } : customers.find(c => c.id === finalCustomerId);
       const { error } = await supabase.from('payments').insert([{
-        customer_id: formData.customer_id,
+        customer_id: finalCustomerId,
         date: formData.date,
         amount: parseInt(formData.amount),
         method: formData.method,
@@ -98,8 +124,11 @@ export default function Dashboard() {
     }
 
     setIsModalOpen(false);
+    setIsNewCustomer(false);
     setFormData({
       customer_id: '',
+      new_customer_name: '',
+      new_customer_phone: '',
       date: new Date().toISOString().split('T')[0],
       type: 'CHILD',
       custom_cost: '',
@@ -108,6 +137,7 @@ export default function Dashboard() {
       payer_name: ''
     });
     fetchDashboardData();
+    fetchCustomers();
   };
 
   return (
@@ -230,18 +260,48 @@ export default function Dashboard() {
 
             <form onSubmit={handleQuickReport} className="p-6 space-y-5 pb-10 md:pb-6">
               <div>
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Customer</label>
-                <select
-                  required
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all text-black font-bold appearance-none"
-                  value={formData.customer_id}
-                  onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
-                >
-                  <option value="">Select a customer</option>
-                  {customers.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Customer</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsNewCustomer(!isNewCustomer)}
+                    className="text-[10px] font-black text-blue-600 uppercase tracking-wider hover:underline"
+                  >
+                    {isNewCustomer ? 'Select Existing' : '+ New Customer'}
+                  </button>
+                </div>
+
+                {isNewCustomer ? (
+                  <div className="space-y-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                    <input
+                      required
+                      type="text"
+                      placeholder="Full Name"
+                      className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-black font-bold"
+                      value={formData.new_customer_name}
+                      onChange={(e) => setFormData({ ...formData, new_customer_name: e.target.value })}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Phone (Optional)"
+                      className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-black font-bold"
+                      value={formData.new_customer_phone}
+                      onChange={(e) => setFormData({ ...formData, new_customer_phone: e.target.value })}
+                    />
+                  </div>
+                ) : (
+                  <select
+                    required
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all text-black font-bold appearance-none"
+                    value={formData.customer_id}
+                    onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
+                  >
+                    <option value="">Select a customer</option>
+                    {customers.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">

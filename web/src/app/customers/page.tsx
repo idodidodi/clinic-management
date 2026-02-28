@@ -12,13 +12,16 @@ interface Customer {
     tariff_parents: number;
 }
 
+import { useAdmin } from '@/lib/AdminContext';
+
 export default function CustomersPage() {
+    const { isAdmin } = useAdmin();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
-    // Form State
+    // ... (keep state)
     const [formData, setFormData] = useState({
         name: '',
         cell_phone: '',
@@ -118,14 +121,16 @@ export default function CustomersPage() {
         <div className="p-8">
             <header className="mb-8 flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Customer Management</h1>
-                    <p className="text-gray-600">Full control over client details and tariffs.</p>
+                    <h1 className="text-3xl font-bold text-gray-900 font-sans tracking-tight">Customer Management</h1>
+                    <p className="text-gray-600">
+                        {isAdmin ? 'Full control over client details and tariffs.' : 'View client directory and add new customers.'}
+                    </p>
                 </div>
                 <button
                     onClick={() => handleOpenModal()}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition-colors shadow-md"
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition-colors shadow-md font-bold"
                 >
-                    Add New Customer
+                    + Add New Customer
                 </button>
             </header>
 
@@ -143,17 +148,31 @@ export default function CustomersPage() {
                                         <p className="text-sm text-gray-500">{customer.cell_phone || 'No phone'}</p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Tariffs</p>
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Tariffs</p>
                                         <p className="text-sm font-bold text-blue-600">₪{customer.tariff_default} / ₪{customer.tariff_parents}</p>
                                     </div>
                                 </div>
-                                {/* 
-                                    Therapist Reporting Mode (Mobile): 
-                                    Editing and deletion are disabled to distinguish from Backoffice.
-                                */}
-                                <div className="text-center py-2 bg-gray-50 rounded-xl text-gray-400 text-xs font-bold mt-2">
-                                    Edit details via Backoffice (Desktop)
-                                </div>
+
+                                {isAdmin ? (
+                                    <div className="flex gap-2 pt-2 border-t border-gray-50">
+                                        <button
+                                            onClick={() => handleOpenModal(customer)}
+                                            className="flex-1 py-2 bg-blue-50 text-blue-700 rounded-xl font-bold text-sm hover:bg-blue-100 transition-colors"
+                                        >
+                                            Edit
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(customer.id)}
+                                            className="flex-1 py-2 bg-red-50 text-red-600 rounded-xl font-bold text-sm hover:bg-red-100 transition-colors"
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-2 bg-gray-50 rounded-xl text-gray-400 text-[10px] font-black uppercase tracking-wider mt-2">
+                                        Admin access required to edit
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -163,43 +182,41 @@ export default function CustomersPage() {
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Default Tariff</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent Tariff</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    <th className="px-6 py-3 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Name</th>
+                                    <th className="px-6 py-3 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Contact</th>
+                                    <th className="px-6 py-3 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Tariffs</th>
+                                    {isAdmin && <th className="px-6 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-widest">Actions</th>}
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {customers.map((customer) => (
                                     <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm font-medium text-gray-900">{customer.name}</div>
+                                            <div className="text-sm font-bold text-gray-900">{customer.name}</div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-500">{customer.cell_phone || 'N/A'}</div>
-                                            <div className="text-sm text-gray-400">{customer.email || 'N/A'}</div>
+                                            <div className="text-sm text-gray-600">{customer.cell_phone || 'N/A'}</div>
+                                            <div className="text-xs text-gray-400">{customer.email || 'N/A'}</div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
-                                            ₪{customer.tariff_default}
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">
+                                            ₪{customer.tariff_default} / ₪{customer.tariff_parents}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
-                                            ₪{customer.tariff_parents}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button
-                                                onClick={() => handleOpenModal(customer)}
-                                                className="text-blue-600 hover:text-blue-900 mr-4 font-semibold"
-                                            >
-                                                Edit
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(customer.id)}
-                                                className="text-red-600 hover:text-red-900 font-semibold"
-                                            >
-                                                Delete
-                                            </button>
-                                        </td>
+                                        {isAdmin && (
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <button
+                                                    onClick={() => handleOpenModal(customer)}
+                                                    className="text-blue-600 hover:text-blue-900 mr-4 font-bold"
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(customer.id)}
+                                                    className="text-red-600 hover:text-red-900 font-bold"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
                             </tbody>

@@ -9,6 +9,16 @@ This mobile-first Progressive Web App (PWA) uses a responsive design to serve tw
 - **Therapist Reporting (Mobile View)**: Optimized for quick on-the-go data entry. Focuses on reporting meetings and payments. Restrictions apply to prevent accidental edits or complex reconciliation on small screens.
 - **Backoffice (Desktop View)**: A full-featured management interface for administrative tasks, including full customer management and payment reconciliation.
 
+## 🛡️ Admin Session & Backoffice
+The app now includes a session-based **Admin Mode** to distinguish between quick reporting (PWA/Mobile) and full administration (Backoffice/Desktop):
+
+- **Therapist Reporting (Default)**: Optimized for on-the-go data entry. Limited to adding meetings, reporting payments, and viewing the client directory. Editing, deletion, and reconciliation are disabled/hidden.
+- **Backoffice (Admin Mode)**: Unlocks full control. Enabled via the **Login/Admin toggle** in the sidebar or bottom bar. Once active, all editing, deletion, and payment reconciliation features are enabled.
+- **Admin Session**: The session is persisted in your browser's local storage.
+
+## 👥 Improved Reporting
+- **Quick Customer Creation**: The "Quick Report" modal on the Dashboard now allows you to create a **New Customer** immediately if they don't exist in the system, streamlining the reporting process.
+
 ## Features
 - **Smart Quick Reporting**: Effortless entry for meetings and payments.
 - **Customer Directory**: Add new customers anywhere; manage details from your desk.
