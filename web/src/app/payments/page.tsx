@@ -17,6 +17,7 @@ interface Payment {
     amount: number;
     date: string;
     method: string;
+    screenshot_url?: string;
 }
 
 import { useAdmin } from '@/lib/AdminContext';
@@ -28,6 +29,7 @@ export default function ReconciliationPage() {
     const [customers, setCustomers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [screenshot, setScreenshot] = useState<File | null>(null);
 
     // ... (keep state)
     const [formData, setFormData] = useState({
@@ -44,13 +46,13 @@ export default function ReconciliationPage() {
     }, []);
 
     async function fetchCustomers() {
-        const { data } = await supabase.from('customers').select('id, name').order('name');
+        const { data } = await supabase.from('customers').select('id, name, cell_phone, tariff_default, tariff_parents').order('name');
         setCustomers(data || []);
     }
 
     async function fetchData() {
         setLoading(true);
-        // Fetch unpaid meetings with customer names
+        // Fetch meetings with at least one unpaid part
         const { data: meetingsData, error: meetingsError } = await supabase
             .from('meetings')
             .select(`
@@ -58,9 +60,11 @@ export default function ReconciliationPage() {
           date,
           type,
           custom_cost,
-          customer:customers(name, tariff_default)
+          is_paid,
+          is_paid_secondary,
+          customer:customers(name, tariff_default, is_split_bill)
         `)
-            .eq('is_paid', false)
+            .or('is_paid.eq.false,is_paid_secondary.eq.false')
             .order('date', { ascending: false });
 
         // Fetch payments
@@ -70,13 +74,45 @@ export default function ReconciliationPage() {
             .order('date', { ascending: false });
 
         if (!meetingsError && meetingsData) {
-            setMeetings(meetingsData.map((m: any) => ({
-                id: m.id,
-                customer_name: m.customer.name,
-                date: new Date(m.date).toLocaleDateString(),
-                type: m.type,
-                cost: m.custom_cost || m.customer.tariff_default
-            })));
+            const flattenedMeetings: Meeting[] = [];
+
+            meetingsData.forEach((m: any) => {
+                const totalCost = m.custom_cost || m.customer.tariff_default;
+                const isSplit = m.customer.is_split_bill && m.type === 'CHILD';
+
+                if (isSplit) {
+                    // Add Part 1 if unpaid
+                    if (!m.is_paid) {
+                        flattenedMeetings.push({
+                            id: `${m.id}_p1`,
+                            customer_name: `${m.customer.name} (Part 1)`,
+                            date: new Date(m.date).toLocaleDateString(),
+                            type: m.type,
+                            cost: totalCost / 2
+                        });
+                    }
+                    // Add Part 2 if unpaid
+                    if (!m.is_paid_secondary) {
+                        flattenedMeetings.push({
+                            id: `${m.id}_p2`,
+                            customer_name: `${m.customer.name} (Part 2)`,
+                            date: new Date(m.date).toLocaleDateString(),
+                            type: m.type,
+                            cost: totalCost / 2
+                        });
+                    }
+                } else {
+                    // Non-split meeting
+                    flattenedMeetings.push({
+                        id: m.id,
+                        customer_name: m.customer.name,
+                        date: new Date(m.date).toLocaleDateString(),
+                        type: m.type,
+                        cost: totalCost
+                    });
+                }
+            });
+            setMeetings(flattenedMeetings);
         }
 
         if (!paymentsError && paymentsData) {
@@ -85,17 +121,30 @@ export default function ReconciliationPage() {
                 payer_name: p.payer_name,
                 amount: p.amount,
                 date: new Date(p.date).toLocaleDateString(),
-                method: p.method
+                method: p.method,
+                screenshot_url: p.screenshot_url
             })));
         }
 
         setLoading(false);
     }
 
-    const handleMarkAsPaid = async (id: string) => {
+    const handleMarkAsPaid = async (composedId: string) => {
+        const [id, part] = composedId.split('_');
+
+        let updateData = {};
+        if (part === 'p1') {
+            updateData = { is_paid: true };
+        } else if (part === 'p2') {
+            updateData = { is_paid_secondary: true };
+        } else {
+            // Non-split
+            updateData = { is_paid: true, is_paid_secondary: true };
+        }
+
         const { error } = await supabase
             .from('meetings')
-            .update({ is_paid: true })
+            .update(updateData)
             .eq('id', id);
 
         if (error) console.error('Error marking as paid:', error);
@@ -108,17 +157,36 @@ export default function ReconciliationPage() {
 
         const selectedCustomer = customers.find(c => c.id === formData.customer_id);
 
+        let screenshotUrl = '';
+        if (screenshot && (formData.method === 'BIT' || formData.method === 'PAYBOX')) {
+            const fileName = `${Date.now()}_${screenshot.name}`;
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('payment-screenshots')
+                .upload(fileName, screenshot);
+
+            if (uploadError) {
+                console.error('Error uploading screenshot:', uploadError);
+            } else if (uploadData) {
+                const { data: publicUrlData } = supabase.storage
+                    .from('payment-screenshots')
+                    .getPublicUrl(uploadData.path);
+                screenshotUrl = publicUrlData.publicUrl;
+            }
+        }
+
         const { error } = await supabase.from('payments').insert([{
             customer_id: formData.customer_id,
             payer_name: formData.payer_name || selectedCustomer?.name || 'Unknown',
             amount: parseInt(formData.amount),
             date: formData.date,
-            method: formData.method
+            method: formData.method,
+            screenshot_url: screenshotUrl || null
         }]);
 
         if (error) console.error('Error reporting payment:', error);
 
         setIsModalOpen(false);
+        setScreenshot(null);
         setFormData({
             customer_id: '',
             payer_name: '',
@@ -198,7 +266,19 @@ export default function ReconciliationPage() {
                                 <div key={payment.id} className="p-5 flex items-center justify-between hover:bg-gray-50 transition-all active:bg-gray-100">
                                     <div className="flex-1 min-w-0 pr-4">
                                         <p className="font-bold text-gray-900 truncate">{payment.payer_name}</p>
-                                        <p className="text-xs text-gray-500 font-medium">{payment.date} • {payment.method}</p>
+                                        <p className="text-xs text-gray-500 font-medium">
+                                            {payment.date} • {payment.method}
+                                            {payment.screenshot_url && (
+                                                <a
+                                                    href={payment.screenshot_url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="ml-2 text-blue-600 hover:underline font-bold"
+                                                >
+                                                    [View Screenshot 📸]
+                                                </a>
+                                            )}
+                                        </p>
                                     </div>
                                     <div className="text-right">
                                         <p className="font-black text-green-600 text-lg">₪{payment.amount}</p>
@@ -228,12 +308,12 @@ export default function ReconciliationPage() {
                             </button>
                         </header>
 
-                        <form onSubmit={handleReportPayment} className="p-6 space-y-5 pb-10 md:pb-6">
+                        <form onSubmit={handleReportPayment} className="p-6 space-y-5 pb-10 md:pb-6 text-black">
                             <div>
                                 <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Customer</label>
                                 <select
                                     required
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all text-black font-bold appearance-none"
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-green-500/10 focus:border-green-500 focus:bg-white transition-all text-black font-bold appearance-none"
                                     value={formData.customer_id}
                                     onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
                                 >
@@ -243,6 +323,28 @@ export default function ReconciliationPage() {
                                     ))}
                                 </select>
                             </div>
+
+                            {/* Customer Details Summary */}
+                            {formData.customer_id && (
+                                <div className="p-4 bg-green-50 rounded-xl border border-green-100 animate-in fade-in slide-in-from-top-2">
+                                    {(() => {
+                                        const cust = customers.find(c => c.id === formData.customer_id);
+                                        if (!cust) return null;
+                                        return (
+                                            <div className="flex justify-between items-center text-xs">
+                                                <div>
+                                                    <p className="font-black text-green-400 uppercase tracking-widest mb-1">Contact</p>
+                                                    <p className="font-bold text-green-800">{cust.cell_phone || 'No phone'}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="font-black text-green-400 uppercase tracking-widest mb-1">Tariffs</p>
+                                                    <p className="font-bold text-green-800">₪{cust.tariff_default} / ₪{cust.tariff_parents}</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+                            )}
 
                             <div>
                                 <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Payer Name (Optional)</label>
@@ -293,6 +395,31 @@ export default function ReconciliationPage() {
                                     ))}
                                 </div>
                             </div>
+
+                            {/* Screenshot Upload for Bit/Paybox */}
+                            {(formData.method === 'BIT' || formData.method === 'PAYBOX') && (
+                                <div className="animate-in fade-in slide-in-from-top-2">
+                                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Screenshot (Optional)</label>
+                                    <div className="relative">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            id="payment-screenshot-upload"
+                                            onChange={(e) => setScreenshot(e.target.files?.[0] || null)}
+                                        />
+                                        <label
+                                            htmlFor="payment-screenshot-upload"
+                                            className={`w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-all ${screenshot ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 bg-gray-50 text-gray-400 hover:border-blue-200 hover:bg-blue-50'}`}
+                                        >
+                                            <span className="text-xl">{screenshot ? '✅' : '📸'}</span>
+                                            <span className="text-xs font-bold truncate">
+                                                {screenshot ? screenshot.name : `Upload ${formData.method} Screenshot`}
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="pt-4 flex gap-3">
                                 <button

@@ -15,6 +15,9 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNewCustomer, setIsNewCustomer] = useState(false);
+  const [screenshot, setScreenshot] = useState<File | null>(null);
+
+  const [manualSplit, setManualSplit] = useState(false);
 
   // Quick Report State
   const [reportType, setReportType] = useState<'MEETING' | 'PAYMENT'>('MEETING');
@@ -36,7 +39,8 @@ export default function Dashboard() {
   }, []);
 
   async function fetchCustomers() {
-    const { data } = await supabase.from('customers').select('id, name').order('name');
+    // Fetch more details to show them in the form
+    const { data } = await supabase.from('customers').select('id, name, cell_phone, tariff_default, tariff_parents, is_split_bill').order('name');
     setCustomers(data || []);
   }
 
@@ -44,7 +48,10 @@ export default function Dashboard() {
     setLoading(true);
     // 1. Fetch Stats
     const { count: customerCount } = await supabase.from('customers').select('*', { count: 'exact', head: true });
-    const { count: meetingCount } = await supabase.from('meetings').select('*', { count: 'exact', head: true }).eq('is_paid', false);
+    const { count: meetingCount } = await supabase
+      .from('meetings')
+      .select('*', { count: 'exact', head: true })
+      .or('is_paid.eq.false,is_paid_secondary.eq.false');
     const { data: paymentsData } = await supabase.from('payments').select('amount');
 
     const totalEarnings = paymentsData?.reduce((sum, p) => sum + p.amount, 0) || 0;
@@ -67,7 +74,7 @@ export default function Dashboard() {
     // 3. Recent Payments
     const { data: pData } = await supabase
       .from('payments')
-      .select('id, date, amount, method, payer_name')
+      .select('id, date, amount, method, payer_name, screenshot_url')
       .order('date', { ascending: false })
       .limit(5);
 
@@ -102,13 +109,35 @@ export default function Dashboard() {
       finalCustomerId = newCust.id;
     }
 
+    // Handle Screenshot Upload
+    let screenshotUrl = '';
+    if (screenshot && (formData.method === 'BIT' || formData.method === 'PAYBOX')) {
+      const fileName = `${Date.now()}_${screenshot.name}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('payment-screenshots')
+        .upload(fileName, screenshot);
+
+      if (uploadError) {
+        console.error('Error uploading screenshot:', uploadError);
+      } else if (uploadData) {
+        const { data: publicUrlData } = supabase.storage
+          .from('payment-screenshots')
+          .getPublicUrl(uploadData.path);
+        screenshotUrl = publicUrlData.publicUrl;
+      }
+    }
+
     if (reportType === 'MEETING') {
+      const selectedCustomer = customers.find(c => c.id === finalCustomerId);
+      const isSplitMeeting = manualSplit || (selectedCustomer?.is_split_bill && formData.type === 'CHILD');
+
       const { error } = await supabase.from('meetings').insert([{
         customer_id: finalCustomerId,
         date: formData.date,
         type: formData.type,
         custom_cost: formData.custom_cost ? parseInt(formData.custom_cost) : null,
-        is_paid: false
+        is_paid: false,
+        is_paid_secondary: !isSplitMeeting
       }]);
       if (error) console.error(error);
     } else {
@@ -118,13 +147,16 @@ export default function Dashboard() {
         date: formData.date,
         amount: parseInt(formData.amount),
         method: formData.method,
-        payer_name: formData.payer_name || selectedCustomer?.name || 'Unknown'
+        payer_name: formData.payer_name || selectedCustomer?.name || 'Unknown',
+        screenshot_url: screenshotUrl || null
       }]);
       if (error) console.error(error);
     }
 
     setIsModalOpen(false);
     setIsNewCustomer(false);
+    setScreenshot(null);
+    setManualSplit(false);
     setFormData({
       customer_id: '',
       new_customer_name: '',
@@ -222,7 +254,19 @@ export default function Dashboard() {
               <div key={payment.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors active:bg-gray-100">
                 <div>
                   <p className="font-bold text-gray-900">{payment.payer_name}</p>
-                  <p className="text-xs text-gray-500 font-medium">{new Date(payment.date).toLocaleDateString()} • {payment.method}</p>
+                  <p className="text-xs text-gray-500 font-medium tracking-tight">
+                    {new Date(payment.date).toLocaleDateString()} • {payment.method}
+                    {payment.screenshot_url && (
+                      <a
+                        href={payment.screenshot_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ml-2 text-blue-600 hover:underline font-bold"
+                      >
+                        [View Screenshot 📸]
+                      </a>
+                    )}
+                  </p>
                 </div>
                 <p className="font-black text-green-600 text-lg">₪{payment.amount}</p>
               </div>
@@ -304,6 +348,30 @@ export default function Dashboard() {
                 )}
               </div>
 
+              {/* Selected Customer Details */}
+              {!isNewCustomer && formData.customer_id && (
+                <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 animate-in fade-in slide-in-from-top-2">
+                  {(() => {
+                    const cust = customers.find(c => c.id === formData.customer_id);
+                    if (!cust) return null;
+                    return (
+                      <div className="flex justify-between items-center text-xs">
+                        <div>
+                          <p className="font-black text-gray-400 uppercase tracking-widest mb-1">Contact</p>
+                          <p className="font-bold text-gray-700">{cust.cell_phone || 'No phone'}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-black text-gray-400 uppercase tracking-widest mb-1">
+                            Tariffs {cust.is_split_bill && <span className="text-blue-600 ml-1 font-black">[Splits Bill]</span>}
+                          </p>
+                          <p className="font-bold text-gray-700">₪{cust.tariff_default} / ₪{cust.tariff_parents}</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Date</label>
@@ -334,6 +402,21 @@ export default function Dashboard() {
                       ))}
                     </div>
                   </div>
+
+                  {formData.type === 'CHILD' && (
+                    <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-xl border border-blue-100 animate-in fade-in slide-in-from-top-1">
+                      <input
+                        type="checkbox"
+                        id="manual-split"
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        checked={manualSplit}
+                        onChange={(e) => setManualSplit(e.target.checked)}
+                      />
+                      <label htmlFor="manual-split" className="text-[10px] font-black text-blue-800 uppercase tracking-widest cursor-pointer">
+                        Split cost 50/50 with secondary parent
+                      </label>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Custom Cost (Optional)</label>
                     <input
@@ -372,6 +455,32 @@ export default function Dashboard() {
                       </select>
                     </div>
                   </div>
+
+                  {/* Screenshot Upload for Bit/Paybox */}
+                  {(formData.method === 'BIT' || formData.method === 'PAYBOX') && (
+                    <div className="animate-in fade-in slide-in-from-top-2">
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Screenshot (Optionl)</label>
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          id="screenshot-upload"
+                          onChange={(e) => setScreenshot(e.target.files?.[0] || null)}
+                        />
+                        <label
+                          htmlFor="screenshot-upload"
+                          className={`w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-all ${screenshot ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 bg-gray-50 text-gray-400 hover:border-blue-200 hover:bg-blue-50'}`}
+                        >
+                          <span className="text-xl">{screenshot ? '✅' : '📸'}</span>
+                          <span className="text-xs font-bold truncate">
+                            {screenshot ? screenshot.name : `Upload ${formData.method} Screenshot`}
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Payer Name (Optional)</label>
                     <input

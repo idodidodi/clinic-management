@@ -10,6 +10,7 @@ interface Customer {
     email: string | null;
     tariff_default: number;
     tariff_parents: number;
+    is_split_bill: boolean;
 }
 
 import { useAdmin } from '@/lib/AdminContext';
@@ -27,7 +28,8 @@ export default function CustomersPage() {
         cell_phone: '',
         email: '',
         tariff_default: 300,
-        tariff_parents: 450
+        tariff_parents: 450,
+        is_split_bill: false
     });
 
     useEffect(() => {
@@ -57,7 +59,8 @@ export default function CustomersPage() {
                 cell_phone: customer.cell_phone || '',
                 email: customer.email || '',
                 tariff_default: customer.tariff_default,
-                tariff_parents: customer.tariff_parents
+                tariff_parents: customer.tariff_parents,
+                is_split_bill: customer.is_split_bill || false
             });
         } else {
             setEditingCustomer(null);
@@ -66,7 +69,8 @@ export default function CustomersPage() {
                 cell_phone: '',
                 email: '',
                 tariff_default: 300,
-                tariff_parents: 450
+                tariff_parents: 450,
+                is_split_bill: false
             });
         }
         setIsModalOpen(true);
@@ -300,6 +304,22 @@ export default function CustomersPage() {
                                         onChange={(e) => setFormData({ ...formData, tariff_parents: parseInt(e.target.value) })}
                                     />
                                 </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                                <input
+                                    type="checkbox"
+                                    id="is_split_bill"
+                                    className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    checked={formData.is_split_bill}
+                                    onChange={(e) => setFormData({ ...formData, is_split_bill: e.target.checked })}
+                                />
+                                <label htmlFor="is_split_bill" className="text-sm font-bold text-blue-900 cursor-pointer">
+                                    Split bill 50/50 between parents
+                                    <span className="block text-[10px] font-medium text-blue-700 uppercase tracking-tight mt-0.5">
+                                        Child meetings will require two payments
+                                    </span>
+                                </label>
                             </div>
 
                             <div className="pt-4 flex gap-3">
