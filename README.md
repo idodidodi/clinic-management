@@ -30,6 +30,7 @@ The app now includes a session-based **Admin Mode** to distinguish between quick
 - **Unified Frontend**: Next.js (React Framework) with Tailwind CSS.
 - **PWA Integration**: Service Workers and Web Manifest for offline reliability and home-screen installation.
 - **Database**: Supabase (PostgreSQL) - Handles relations and real-time synchronization.
+- **Database Clients**: `supabase-js`, `postgres` (for migrations/direct access), and `pg`.
 
 ## Database Schema Highlights
 
@@ -37,11 +38,14 @@ The system uses a relational PostgreSQL database with the following core entitie
 
 - **Customers**: Names, cell phones, emails, and custom tariffs (`tariff_default` vs `tariff_parents`).
 - **Meetings**: Linked to customers, tracking date, type (Child/Parent/Parents), and payment status.
-- **Payments**: Linked to customers, tracking actual funds received, methods, and reference IDs.
+- **Payments**: Linked to customers, tracking actual funds received, methods, reference IDs, and screenshot URLs.
 
 ## Development Setup
 
 1. **Database**: Initialize a Supabase project and apply the schema in `supabase/migrations/`.
+   > [!IMPORTANT]
+   > For IPv4-only networks, use the **Session Pooler** connection string from the Supabase dashboard (Settings -> Database -> Connection String -> Pooler).
+
 2. **Setup Environment**:
    - Create a `web/.env.local` file with your Supabase credentials:
      ```env
@@ -54,7 +58,7 @@ The system uses a relational PostgreSQL database with the following core entitie
 
 ## Getting Started
 
-For a detailed guide on how to install the app on your phone and manage the clinic, see the [Walkthrough](file:///Users/ido1/.gemini/antigravity/brain/acd6b7e2-0b64-45e3-a872-cb1e49c4ef3b/walkthrough.md).
+For a detailed guide on how to install the app on your phone and manage the clinic, see the [Walkthrough](file:///Users/ido1/.gemini/antigravity/brain/96ac1996-a8bb-46cd-a2a2-e51cd34c6ae6/walkthrough.md).
 
 ## Maintainability
 

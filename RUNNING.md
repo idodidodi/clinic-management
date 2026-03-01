@@ -4,11 +4,22 @@ This guide explains how to run the Clinic Management PWA and access its unified 
 
 ## Prerequisites
 
-1.  **Supabase Setup**: Ensure you have a Supabase project and the environment variables are set in `web/.env.local`:
-    ```env
-    NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-    ```
+1.  **Supabase Setup**: 
+    - Create a project on [Supabase](https://supabase.com).
+    - Set the environment variables in `web/.env.local`:
+      ```env
+      NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+      NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+      ```
+    - **Database Initialization (Migrations)**:
+      The project uses Supabase migrations. To initialize the database:
+      1.  Go to **Settings (⚙️) -> Database**.
+      2.  Check **"Use connection pooling"** and select **"Session"** mode.
+      3.  Copy the **Session Pooler** connection string (Port 5432).
+      4.  Run the migrations from the `supabase/migrations` folder using the Supabase CLI or a SQL client.
+      > [!IMPORTANT]
+      > If you are on an IPv4-only network (like many local dev environments), you **MUST** use the Pooler connection string (`aws-0-[REGION].pooler.supabase.com`) as the direct database address (`db.[REF].supabase.co`) is IPv6-only.
+
 2.  **Dependencies**: Install dependencies in the `web` directory.
     ```bash
     cd web
