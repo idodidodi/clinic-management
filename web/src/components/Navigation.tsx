@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useAdmin } from '@/lib/AdminContext';
 
 export function Navigation({ children }: { children: React.ReactNode }) {
-    const { isAdmin, setIsAdmin } = useAdmin();
+    const { isAdmin, signOut, user } = useAdmin();
     const isLocalhost = typeof window !== 'undefined' &&
         (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
@@ -32,21 +32,19 @@ export function Navigation({ children }: { children: React.ReactNode }) {
                     </Link>
                 </nav>
 
-                {/* Admin Toggle in Sidebar (Desktop) */}
-                {isLocalhost && (
-                    <div className="pt-6 border-t border-gray-100 flex flex-col gap-4">
-                        <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Admin Session</p>
-                            <button
-                                onClick={() => setIsAdmin(!isAdmin)}
-                                className={`w-full py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border-2 ${isAdmin ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
-                            >
-                                {isAdmin ? 'Admin Mode: ON' : 'Admin Mode: OFF'}
-                                <div className={`w-2 h-2 rounded-full ${isAdmin ? 'bg-green-300 animate-pulse' : 'bg-gray-300'}`}></div>
-                            </button>
-                        </div>
+                {/* Admin/User Info in Sidebar (Desktop) */}
+                <div className="pt-6 border-t border-gray-100 flex flex-col gap-4">
+                    <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Signed In As</p>
+                        <p className="text-xs font-bold text-gray-700 truncate mb-3">{user?.email}</p>
+                        <button
+                            onClick={signOut}
+                            className="w-full py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border-2 bg-white border-gray-100 text-red-600 hover:border-red-200 hover:bg-red-50"
+                        >
+                            Sign Out 🚪
+                        </button>
                     </div>
-                )}
+                </div>
             </aside>
 
             {/* Main Content */}
@@ -68,16 +66,14 @@ export function Navigation({ children }: { children: React.ReactNode }) {
                     <span className="text-2xl">💰</span>
                     <span className="text-[10px] font-bold uppercase tracking-wider">Cash</span>
                 </Link>
-                {/* Mobile Admin Toggle (Subtle) */}
-                {isLocalhost && (
-                    <button
-                        onClick={() => setIsAdmin(!isAdmin)}
-                        className={`flex flex-col items-center gap-1 transition-colors ${isAdmin ? 'text-blue-600' : 'text-gray-400 opacity-50'}`}
-                    >
-                        <span className="text-2xl">{isAdmin ? '🔓' : '🔒'}</span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider">{isAdmin ? 'Admin' : 'Login'}</span>
-                    </button>
-                )}
+                {/* Mobile Sign Out */}
+                <button
+                    onClick={signOut}
+                    className="flex flex-col items-center gap-1 text-gray-400 opacity-50 active:text-red-600 transition-colors"
+                >
+                    <span className="text-2xl">🚪</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Exit</span>
+                </button>
             </nav>
         </div>
     );
