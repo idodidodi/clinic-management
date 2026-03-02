@@ -6,6 +6,8 @@ import { useAdmin } from '@/lib/AdminContext';
 
 export function Navigation({ children }: { children: React.ReactNode }) {
     const { isAdmin, setIsAdmin } = useAdmin();
+    const isLocalhost = typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
     return (
         <div className="flex min-h-screen bg-gray-50 pb-20 md:pb-0 font-sans">
@@ -31,18 +33,20 @@ export function Navigation({ children }: { children: React.ReactNode }) {
                 </nav>
 
                 {/* Admin Toggle in Sidebar (Desktop) */}
-                <div className="pt-6 border-t border-gray-100 flex flex-col gap-4">
-                    <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Admin Session</p>
-                        <button
-                            onClick={() => setIsAdmin(!isAdmin)}
-                            className={`w-full py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border-2 ${isAdmin ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
-                        >
-                            {isAdmin ? 'Admin Mode: ON' : 'Admin Mode: OFF'}
-                            <div className={`w-2 h-2 rounded-full ${isAdmin ? 'bg-green-300 animate-pulse' : 'bg-gray-300'}`}></div>
-                        </button>
+                {isLocalhost && (
+                    <div className="pt-6 border-t border-gray-100 flex flex-col gap-4">
+                        <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Admin Session</p>
+                            <button
+                                onClick={() => setIsAdmin(!isAdmin)}
+                                className={`w-full py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border-2 ${isAdmin ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                            >
+                                {isAdmin ? 'Admin Mode: ON' : 'Admin Mode: OFF'}
+                                <div className={`w-2 h-2 rounded-full ${isAdmin ? 'bg-green-300 animate-pulse' : 'bg-gray-300'}`}></div>
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
             </aside>
 
             {/* Main Content */}
@@ -65,13 +69,15 @@ export function Navigation({ children }: { children: React.ReactNode }) {
                     <span className="text-[10px] font-bold uppercase tracking-wider">Cash</span>
                 </Link>
                 {/* Mobile Admin Toggle (Subtle) */}
-                <button
-                    onClick={() => setIsAdmin(!isAdmin)}
-                    className={`flex flex-col items-center gap-1 transition-colors ${isAdmin ? 'text-blue-600' : 'text-gray-400 opacity-50'}`}
-                >
-                    <span className="text-2xl">{isAdmin ? '🔓' : '🔒'}</span>
-                    <span className="text-[10px] font-bold uppercase tracking-wider">{isAdmin ? 'Admin' : 'Login'}</span>
-                </button>
+                {isLocalhost && (
+                    <button
+                        onClick={() => setIsAdmin(!isAdmin)}
+                        className={`flex flex-col items-center gap-1 transition-colors ${isAdmin ? 'text-blue-600' : 'text-gray-400 opacity-50'}`}
+                    >
+                        <span className="text-2xl">{isAdmin ? '🔓' : '🔒'}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider">{isAdmin ? 'Admin' : 'Login'}</span>
+                    </button>
+                )}
             </nav>
         </div>
     );

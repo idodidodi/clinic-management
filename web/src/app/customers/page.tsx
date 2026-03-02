@@ -291,7 +291,7 @@ export default function CustomersPage() {
                                         type="number"
                                         className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-black"
                                         value={formData.tariff_default}
-                                        onChange={(e) => setFormData({ ...formData, tariff_default: parseInt(e.target.value) })}
+                                        onChange={(e) => setFormData({ ...formData, tariff_default: e.target.value === '' ? 0 : parseInt(e.target.value) })}
                                     />
                                 </div>
                                 <div>
@@ -301,7 +301,7 @@ export default function CustomersPage() {
                                         type="number"
                                         className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-black"
                                         value={formData.tariff_parents}
-                                        onChange={(e) => setFormData({ ...formData, tariff_parents: parseInt(e.target.value) })}
+                                        onChange={(e) => setFormData({ ...formData, tariff_parents: e.target.value === '' ? 0 : parseInt(e.target.value) })}
                                     />
                                 </div>
                             </div>
